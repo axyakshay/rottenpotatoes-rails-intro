@@ -1,8 +1,8 @@
 class MoviesController < ApplicationController
 
-  def movie_params
-    params.require(:movie).permit(:title, :rating, :description, :release_date)
-  end
+#  def movie_params
+#    params.require(:movie).permit(:title, :rating, :description, :release_date)
+#  end
 
   def show
     id = params[:id] # retrieve movie ID from URI route
@@ -11,18 +11,57 @@ class MoviesController < ApplicationController
   end
 
   def index
-    @movies = Movie.order(params[:sort_by])
-    if params[:ratings]
-      @movies = Movie.where(:rating => params[:ratings].keys).order(params[:sort_by])
-    end
-    @sort_column = params[:sort_by]
     @all_ratings = Movie.all_ratings
-    @set_ratings = params[:ratings]
-    if !@set_ratings
-      @set_ratings = Hash.new
+    redirect = false
+    
+    logger.debug(session.inspect)
+    
+    if params[:sort_by]
+      @sort_by = params[:sort_by]
+      session[:sort_by] = params[:sort_by]
+    elsif session[:sort_by]
+      @sort_by = session[:sort_by]
+      redirect = true
+    else
+      @sort_by = nil
+    end
+    
+    if params[:commit] == "Refresh" and params[:ratings].nil?
+      @ratings = nil
+      session[:ratings] = nil
+    elsif params[:ratings] 
+      @ratings = params[:ratings]
+      session[:ratings] = params[:ratings]
+    elsif session[:ratings]
+      @ratings = session[:ratings]
+      redirect = true
+    else
+      @ratings = nil
+    end
+    
+    if redirect
+      flash.keep
+      redirect_to movies_path :sort_by=>@sort_by, :ratings=>@ratings
+    end
+    
+      
+    
+      #@movies = Movie.order(params[:sort_by]) params[:sort_by]
+    
+    if @ratings and @sort_by
+      @movies = Movie.where(:rating => @ratings.keys).order(@sort_by)
+    elsif @ratings
+      @movies = Movie.where(:rating => @ratings.keys)
+    elsif @sort_by
+      @movies = Movie.find(:all, :order => (@sort_by))
+    else
+      @movies = Movie.all
+    end
+    
+    if !@ratings
+      @ratings = Hash.new
     end
   end
-
   def new
     # default: render 'new' template
   end
